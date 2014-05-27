@@ -231,7 +231,9 @@ class RegNumForSlotNum < Command
 	end 
 
 	def process(matchData)
-		slots = @parkingLot.allottedSlots.select { |slot| slot.car.regNum?(matchData[1]) }
+		slots = @parkingLot.allottedSlots.select { |slot| 
+			slot.car.regNum?(matchData[1])
+			 }
 		if (slots.length == 1)
 			puts(slots.at(0).num)
 		else
@@ -256,7 +258,9 @@ class RegNumsForColor < Command
 	end 
 
 	def process(matchData)
-		@parkingLot.allottedSlots.select { |slot| slot.car.color?  matchData[1] }.map{ |slot| slot.car.regNum}.join(",")
+		@parkingLot.allottedSlots.select { |slot| 
+			slot.car.color?  matchData[1] 
+			}.map{ |slot| slot.car.regNum}.join(",")
 	end	
 
 end
