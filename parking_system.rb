@@ -1,12 +1,38 @@
 #! /usr/bin/ruby
 
+class Slot
+	attr_reader :num
+	attr_reader :car
+	def initialize(num,car)
+		@num = num
+		@car = car
+	end
+end
+
 class ParkingLot
 
 	def initialize(capacity)
 		@capacity = capacity.to_i
 		@size = 0
 		@slots = Array.new(@capacity)
+		@commands = Array.new
 	end	
+
+	def addCommand(command)
+		@commands.push(command)
+	end
+
+	def executeCommand(commandStr)
+		for command in @commands
+			if(command.execute(commandStr))
+				# Once a command is executed, we exit.
+				return true
+			end
+		end
+		puts('Unknown command: '+ commandStr)
+		return false
+	end
+
 
 	def park(car)
 		if(full?)
@@ -46,6 +72,7 @@ class ParkingLot
 		end	
 	end
 
+	#Provides the status of the whole parking lot.
 	def status()
 		puts("Slot No.	Registration No	Colour")
 		for i in 0..@slots.length
@@ -78,62 +105,6 @@ class Car
 	end
 end
 
-class ParkingSystem
-
-	def initialize( parkingSystem = self)
-		@commands = Array.new
-		@parkingLot = ParkingLot.new(0)
-	end
-
-	def addCommand(command)
-		@commands.push(command)
-	end
-
-	def executeCommand(commandStr)
-		for command in @commands
-			if(command.execute(commandStr))
-				return true
-			end
-		end
-		puts('Unknown command: '+ commandStr)
-		return false
-	end
-
-	def createParkingLot(size)
-		@parkingLot = ParkingLot.new(size)	
-	end
-
-
-	def canParkMore?()
-		!@parkingLot.full?
-	end 
-
-	def park(car)
-		return @parkingLot.park(car)
-	end
-
-	def isParked(car)
-		@parkingLot.isParked(car)
-	end
-
-	def slotNum(car)
-		@parkingLot.slotNum(car)
-	end
-
-	def leave(slotNum)
-		@parkingLot.leave(slotNum)
-	end
-
-	def status()
-		@parkingLot.status()
-	end
-
-	def query(queryFunc)
-		@parkingLot.query(queryFunc)
-	end
-end 
-
-
 class Command
 	MISSING_METHOD = 'System error: Missing method'
 	def execute(command)
@@ -151,35 +122,11 @@ class Command
 	def process(matchData) raise MISSING_METHOD end
 end 
 
-class CreateParkingLot < Command
 
-	def initialize(parkingSystem)
-		@parkingSystem = parkingSystem
-	end
-
-
-	def pattern()
-		'^create_parking_lot (\d+)$'
-	end
-
-	def canProcess(matchData) 
-		!(matchData.nil? || matchData[1].nil?)
-	end 
-
-	def process(matchData)
-		numSlots = matchData[1].strip.to_i
-		if(numSlots > 0)
-			puts('Created a parking lot with ' +numSlots.to_s+' slots')
-			@parkingSystem.createParkingLot(matchData[1].strip)
-		else
-			raise 'Will not create a parking lot with less than 1 slot'
-		end
-	end
-end	
 
 class Park < Command
-	def initialize(parkingSystem)
-		@parkingSystem = parkingSystem
+	def initialize(parkingLot)
+		@parkingLot = parkingLot
 	end
 
 
@@ -193,11 +140,11 @@ class Park < Command
 
 	def process(matchData)
 		car = Car.new(matchData[1],matchData[2])
-		if(@parkingSystem.isParked(car))
+		if(@parkingLot.isParked(car))
 			#What to do? Raise error? Ignore silently?
 			raise car.to_s + ' is already parked with us. Shall I call the cops?'
 		end	
-		slotNum = @parkingSystem.park(car)
+		slotNum = @parkingLot.park(car)
 		if(slotNum > 0)
 			puts('Allocated slot number: '+ slotNum.to_s)
 		else
@@ -207,8 +154,8 @@ class Park < Command
 end
 
 class Leave < Command
-	def initialize(parkingSystem)
-		@parkingSystem = parkingSystem
+	def initialize(parkingLot)
+		@parkingLot = parkingLot
 	end
 	
 	def pattern()
@@ -222,13 +169,13 @@ class Leave < Command
 
 	def process(matchData)
 		slotNum = matchData[1].to_i
-		@parkingSystem.leave(slotNum)
+		@parkingLot.leave(slotNum)
 	end
 end
 
 class Status < Command
-	def initialize(parkingSystem)
-		@parkingSystem = parkingSystem
+	def initialize(parkingLot)
+		@parkingLot = parkingLot
 	end
 
 
@@ -238,14 +185,14 @@ class Status < Command
 
 
 	def process(matchData)
-		@parkingSystem.status()
+		@parkingLot.status()
 	end
 end
 
 class SlotNumForColorQuery < Command
 
-	def initialize(parkingSystem)
-		@parkingSystem = parkingSystem
+	def initialize(parkingLot)
+		@parkingLot = parkingLot
 	end
 
 	def pattern()
@@ -257,16 +204,16 @@ class SlotNumForColorQuery < Command
 	end 
 
 	def process(matchData)
-		cars = @parkingSystem.query(Proc.new{|car| if (!car.nil? && car.color == matchData[1]) then car end}).compact()
-		puts(cars.map(&Proc.new{|car| @parkingSystem.slotNum(car)}).join(","))
+		cars = @parkingLot.query(Proc.new{|car| if (!car.nil? && car.color == matchData[1]) then car end}).compact()
+		puts(cars.map(&Proc.new{|car| @parkingLot.slotNum(car)}).join(","))
 	end	
 
 end
 
 class CarRegNumQuery < Command
 
-	def initialize(parkingSystem)
-		@parkingSystem = parkingSystem
+	def initialize(parkingLot)
+		@parkingLot = parkingLot
 	end
 
 	def pattern()
@@ -278,9 +225,9 @@ class CarRegNumQuery < Command
 	end 
 
 	def process(matchData)
-		cars = @parkingSystem.query(Proc.new{|car| if (!car.nil? && car.regNum == matchData[1]) then car end}).compact()
+		cars = @parkingLot.query(Proc.new{|car| if (!car.nil? && car.regNum == matchData[1]) then car end}).compact()
 		if (cars.length == 1)
-			puts(@parkingSystem.slotNum(cars.at(0)))
+			puts(@parkingLot.slotNum(cars.at(0)))
 		else
 			puts('Not found')
 		end		
@@ -290,8 +237,8 @@ end
 
 class RegNumForColorQuery < Command
 
-	def initialize(parkingSystem)
-		@parkingSystem = parkingSystem
+	def initialize(parkingLot)
+		@parkingLot = parkingLot
 	end
 
 	def pattern()
@@ -303,7 +250,7 @@ class RegNumForColorQuery < Command
 	end 
 
 	def process(matchData)
-		cars = @parkingSystem.query(Proc.new{|car| if (!car.nil? && car.color == matchData[1]) then car.regNum end}).compact()
+		cars = @parkingLot.query(Proc.new{|car| if (!car.nil? && car.color == matchData[1]) then car.regNum end}).compact()
 		if(cars.length > 0 )
 			puts(cars.join(","))
 		else
@@ -312,20 +259,57 @@ class RegNumForColorQuery < Command
 	end	
 
 end
-p = ParkingSystem.new
-p.addCommand(Park.new(p))
-p.addCommand(CreateParkingLot.new(p))
-p.addCommand(Status.new(p))
-p.addCommand(Leave.new(p))
-p.addCommand(SlotNumForColorQuery.new(p))
-p.addCommand(CarRegNumQuery.new(p))
-p.addCommand(RegNumForColorQuery.new(p))
 
+class ParkingLotFactory
+
+	def self.makeParkingLot(command)
+		pattern = '^create_parking_lot\s+(\d+)$'
+		md = command.match(pattern)
+		puts(md[1])
+		if(md.nil? || md[1].nil?)
+			raise 'Can process only parking lot creation'
+		end 
+		numSlots = md[1].strip.to_i
+		if(numSlots > 0)
+			p =  ParkingLot.new(numSlots)
+			p.addCommand(Park.new(p))
+			p.addCommand(Status.new(p))
+			p.addCommand(Leave.new(p))
+			p.addCommand(SlotNumForColorQuery.new(p))
+			p.addCommand(CarRegNumQuery.new(p))
+			p.addCommand(RegNumForColorQuery.new(p))
+			puts('Created a parking lot with ' +numSlots.to_s+' slots')
+			return p
+		else
+			raise 'Will not create a parking lot with less than 1 slot'
+		end
+		
+	end 
+end 
+
+class ParkingSystem
+	@parkingLot = nil
+
+	def execCommand(command)
+			if(@parkingLot.nil?)
+				begin
+					@parkingLot = ParkingLotFactory.makeParkingLot(command)
+				rescue
+					puts 'Please create a parking lot with more than zero slots'
+				end
+			else
+				@parkingLot.executeCommand(command)
+			end
+	end
+
+end 
+
+p = ParkingSystem.new
 if(ARGV.length == 0 )
 	while(true)
 		command = gets()
-		p.executeCommand(command)
+		p.execCommand(command)
 	end
 else
-	IO.foreach(ARGV[0]){|line| p.executeCommand(line.strip())}
+	IO.foreach(ARGV[0]){|line| p.execCommand(line.strip())}
 end
