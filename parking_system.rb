@@ -95,8 +95,16 @@ class Car
 		@color = color
 	end
 
-	def ==(o)
-		self.color == o.color && self.regNum == o.regNum
+	def ==(car)
+		color?(car.color) && regNum?(car.regNum)
+	end
+
+	def color?(col)
+		self.color.downcase == col.downcase
+	end	
+
+	def regNum?(regNum)
+		self.regNum.downcase == regNum.downcase
 	end
 
 	def to_s()
@@ -188,7 +196,7 @@ class Status < Command
 	end
 end
 
-class SlotNumForColorQuery < Command
+class SlotNumsForColor < Command
 
 	def initialize(parkingLot)
 		@parkingLot = parkingLot
@@ -203,12 +211,12 @@ class SlotNumForColorQuery < Command
 	end 
 
 	def process(matchData)
-		@parkingLot.allottedSlots.select { |slot| slot.car.color == matchData[1] }.map{|slot| slot.num}.join(",")
+		@parkingLot.allottedSlots.select { |slot| slot.car.color?(matchData[1]) }.map{|slot| slot.num}.join(",")
 	end	
 
 end
 
-class CarRegNumQuery < Command
+class RegNumForSlotNum < Command
 
 	def initialize(parkingLot)
 		@parkingLot = parkingLot
@@ -223,7 +231,7 @@ class CarRegNumQuery < Command
 	end 
 
 	def process(matchData)
-		slots = @parkingLot.allottedSlots.select { |slot| slot.car.regNum == matchData[1] }
+		slots = @parkingLot.allottedSlots.select { |slot| slot.car.regNum?(matchData[1]) }
 		if (slots.length == 1)
 			puts(slots.at(0).num)
 		else
@@ -233,7 +241,7 @@ class CarRegNumQuery < Command
 
 end
 
-class RegNumForColorQuery < Command
+class RegNumsForColor < Command
 
 	def initialize(parkingLot)
 		@parkingLot = parkingLot
@@ -248,7 +256,7 @@ class RegNumForColorQuery < Command
 	end 
 
 	def process(matchData)
-		@parkingLot.allottedSlots.select { |slot| slot.car.color == matchData[1] }.map{ |slot| slot.car.regNum}.join(",")
+		@parkingLot.allottedSlots.select { |slot| slot.car.color?  matchData[1] }.map{ |slot| slot.car.regNum}.join(",")
 	end	
 
 end
@@ -268,9 +276,9 @@ class ParkingLotFactory
 			p.addCommand(Park.new(p))
 			p.addCommand(Status.new(p))
 			p.addCommand(Leave.new(p))
-			p.addCommand(SlotNumForColorQuery.new(p))
-			p.addCommand(CarRegNumQuery.new(p))
-			p.addCommand(RegNumForColorQuery.new(p))
+			p.addCommand(SlotNumsForColor.new(p))
+			p.addCommand(RegNumForSlotNum.new(p))
+			p.addCommand(RegNumsForColor.new(p))
 			puts('Created a parking lot with ' +numSlots.to_s+' slots')
 			return p
 		else
