@@ -18,6 +18,10 @@ class ParkingLot
 		@commands = Array.new
 	end	
 
+	def allottedSlots()
+		return @slots.compact()
+	end
+
 	def addCommand(command)
 		@commands.push(command)
 	end
@@ -36,24 +40,22 @@ class ParkingLot
 
 	def park(car)
 		if(full?)
-			return -1
+			return nil
 		end
 		for i in 0..@slots.length
 			if(@slots.at(i).nil?)
-				@slots[i] = car
+				slot = Slot.new(i+1,car)
+				@slots[i] = slot
 				@size += 1
-				return i+1
+				return slot
 			end
 		end
 	end
 
 	def isParked(car)
-		@slots.include?(car)
+		@slots.select { |slot| !slot.nil? && slot.car == car}.length == 1
 	end
 
-	def slotNum(car)
-		@slots.index(car)+1
-	end	
 
 	def full?()
 		@size == @capacity
@@ -75,11 +77,11 @@ class ParkingLot
 	#Provides the status of the whole parking lot.
 	def status()
 		puts("Slot No.	Registration No	Colour")
-		for i in 0..@slots.length
-			if(!@slots[i].nil?)
-				puts((i+1).to_s+'	'+@slots[i].regNum+'	'+@slots[i].color)
+		@slots.each { |slot| 
+			if( !slot.nil?) 
+				puts(slot.num.to_s + '	' + slot.car.regNum + '	' + slot.car.color) 
 			end
-		end
+		}
 	end
 
 	def query(queryFunc)	
@@ -144,9 +146,9 @@ class Park < Command
 			#What to do? Raise error? Ignore silently?
 			raise car.to_s + ' is already parked with us. Shall I call the cops?'
 		end	
-		slotNum = @parkingLot.park(car)
-		if(slotNum > 0)
-			puts('Allocated slot number: '+ slotNum.to_s)
+		slot = @parkingLot.park(car)
+		if(!slot.nil?)
+			puts('Allocated slot number: '+ slot.num.to_s)
 		else
 			puts('Sorry, parking lot is full')
 		end	
@@ -204,8 +206,7 @@ class SlotNumForColorQuery < Command
 	end 
 
 	def process(matchData)
-		cars = @parkingLot.query(Proc.new{|car| if (!car.nil? && car.color == matchData[1]) then car end}).compact()
-		puts(cars.map(&Proc.new{|car| @parkingLot.slotNum(car)}).join(","))
+		@parkingLot.allottedSlots.select { |slot| slot.car.color == matchData[1] }.map{|slot| slot.num}.join(",")
 	end	
 
 end
@@ -225,9 +226,9 @@ class CarRegNumQuery < Command
 	end 
 
 	def process(matchData)
-		cars = @parkingLot.query(Proc.new{|car| if (!car.nil? && car.regNum == matchData[1]) then car end}).compact()
-		if (cars.length == 1)
-			puts(@parkingLot.slotNum(cars.at(0)))
+		slots = @parkingLot.allottedSlots.select { |slot| slot.car.regNum == matchData[1] }
+		if (slots.length == 1)
+			puts(slots.at(0).num)
 		else
 			puts('Not found')
 		end		
@@ -250,12 +251,7 @@ class RegNumForColorQuery < Command
 	end 
 
 	def process(matchData)
-		cars = @parkingLot.query(Proc.new{|car| if (!car.nil? && car.color == matchData[1]) then car.regNum end}).compact()
-		if(cars.length > 0 )
-			puts(cars.join(","))
-		else
-			puts('Not found')
-		end
+		@parkingLot.allottedSlots.select { |slot| slot.car.color == matchData[1] }.map{ |slot| slot.car.regNum}.join(",")
 	end	
 
 end
