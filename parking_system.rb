@@ -83,10 +83,7 @@ class ParkingLot
 			end
 		}
 	end
-
-	def query(queryFunc)	
-		@slots.map(&queryFunc)
-	end 
+ 
 end
 
 class Car
