@@ -7,9 +7,30 @@ class Slot
 		@num = num
 		@car = car
 	end
+
+	def to_s()
+		@num.to_s + '	' + @car.to_s
+	end
 end
 
 class ParkingLot
+
+	def self.create(command)
+		pattern = '^create_parking_lot\s+(\d+)$'
+		md = command.match(pattern)
+		puts(md[1])
+		if(md.nil? || md[1].nil?)
+			raise 'Can process only parking lot creation'
+		end 
+		numSlots = md[1].strip.to_i
+		if(numSlots > 0)
+			p =  ParkingLot.new(numSlots)
+			puts('Created a parking lot with ' +numSlots.to_s+' slots')
+			return p
+		else
+			raise 'Will not create a parking lot with less than 1 slot'
+		end
+	end 
 
 	def initialize(capacity)
 		@capacity = capacity.to_i
@@ -75,11 +96,11 @@ class ParkingLot
 	end
 
 	#Provides the status of the whole parking lot.
-	def status()
-		puts("Slot No.	Registration No	Colour")
-		@slots.each { |slot| 
+	def to_s()
+		status = "Slot No.	Registration No	Colour\n"
+		allottedSlots.each { |slot| 
 			if( !slot.nil?) 
-				puts(slot.num.to_s + '	' + slot.car.regNum + '	' + slot.car.color) 
+				status += slot.to_s + '\n'
 			end
 		}
 	end
@@ -108,7 +129,7 @@ class Car
 	end
 
 	def to_s()
-		return @color + " car with registration number: "+@regNum 
+		return @regNum + '	'+@color
 	end
 end
 
@@ -192,7 +213,7 @@ class Status < Command
 
 
 	def process(matchData)
-		@parkingLot.status()
+		puts(@parkingLot.to_s)
 	end
 end
 
@@ -265,40 +286,19 @@ class RegNumsForColor < Command
 
 end
 
-class ParkingLotFactory
-
-	def self.makeParkingLot(command)
-		pattern = '^create_parking_lot\s+(\d+)$'
-		md = command.match(pattern)
-		puts(md[1])
-		if(md.nil? || md[1].nil?)
-			raise 'Can process only parking lot creation'
-		end 
-		numSlots = md[1].strip.to_i
-		if(numSlots > 0)
-			p =  ParkingLot.new(numSlots)
-			p.addCommand(Park.new(p))
-			p.addCommand(Status.new(p))
-			p.addCommand(Leave.new(p))
-			p.addCommand(SlotNumsForColor.new(p))
-			p.addCommand(RegNumForSlotNum.new(p))
-			p.addCommand(RegNumsForColor.new(p))
-			puts('Created a parking lot with ' +numSlots.to_s+' slots')
-			return p
-		else
-			raise 'Will not create a parking lot with less than 1 slot'
-		end
-		
-	end 
-end 
-
 class ParkingSystem
 	@parkingLot = nil
 
 	def execCommand(command)
 			if(@parkingLot.nil?)
 				begin
-					@parkingLot = ParkingLotFactory.makeParkingLot(command)
+					@parkingLot = ParkingLot.create(command)
+					@parkingLot.addCommand(Park.new(@parkingLot))
+					@parkingLot.addCommand(Status.new(@parkingLot))
+					@parkingLot.addCommand(Leave.new(@parkingLot))
+					@parkingLot.addCommand(SlotNumsForColor.new(@parkingLot))
+					@parkingLot.addCommand(RegNumForSlotNum.new(@parkingLot))
+					@parkingLot.addCommand(RegNumsForColor.new(@parkingLot))
 				rescue
 					puts 'Please create a parking lot with more than zero slots'
 				end
