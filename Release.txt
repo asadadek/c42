@@ -1,1 +1,2 @@
 Release for master
+new line
